@@ -1,0 +1,24 @@
+name: 'Minecraft Tests'
+author: Geometrically
+description: 'Tests Minecraft mod on server and build.'
+inputs:
+  minecraftVersion:
+    required: true
+    default: 'latest'
+    description: 'Minecraft Version to run tests on, currently supports'
+  uploadJars:
+    required: false
+    default: false
+    description: 'Whether the action should upload the jars from the build test.'
+  runBuildTest:
+    required: false
+    default: true
+    description: 'Whether the action should run the build test'
+  runServerTest:
+    required: false
+    default: true
+    description: 'Whether the action should run the server test. Useful for client only mods.'
+outputs: {}
+runs:
+  using: 'node12'
+  main: 'dist/index.js'
