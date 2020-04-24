@@ -6,10 +6,6 @@ inputs:
     required: true
     default: 'latest'
     description: 'Minecraft Version to run tests on, currently supports'
-  uploadJars:
-    required: false
-    default: false
-    description: 'Whether the action should upload the jars from the build test.'
   runBuildTest:
     required: false
     default: true
