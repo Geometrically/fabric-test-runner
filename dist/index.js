@@ -161,6 +161,21 @@ let minecraftVersion = '';
 let fabricVersion = '';
 
 async function run() {
+  if(version === "latest") {
+    const yarnResp = await fetch('https://meta.fabricmc.net/v2/versions/yarn/', {
+      method: 'get',
+      credentials: 'include',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    const yarnJson = await yarnResp.json();
+
+    version = yarnJson[0].gameVersion;
+  }
+
   const loaderResp = await fetch('https://meta.fabricmc.net/v1/versions/loader/' + version, {
     method: 'get',
     credentials: 'include',
@@ -171,9 +186,6 @@ async function run() {
   });
 
   const json = await loaderResp.json();
-
-  if(version === "latest")
-    version = "";
 
   console.log('[ACTION] Requesting data via HTTPS GET from https://meta.fabricmc.net/v1/versions/loader/' + version + '\n')
 

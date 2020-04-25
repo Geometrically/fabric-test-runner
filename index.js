@@ -13,6 +13,21 @@ let minecraftVersion = '';
 let fabricVersion = '';
 
 async function run() {
+  if(version === "latest") {
+    const yarnResp = await fetch('https://meta.fabricmc.net/v1/versions/', {
+      method: 'get',
+      credentials: 'include',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    const yarnJson = await yarnResp.json();
+
+    version = yarnJson.game[0].version;
+  }
+
   const loaderResp = await fetch('https://meta.fabricmc.net/v1/versions/loader/' + version, {
     method: 'get',
     credentials: 'include',
@@ -23,9 +38,6 @@ async function run() {
   });
 
   const json = await loaderResp.json();
-
-  if(version === "latest")
-    version = "";
 
   console.log('[ACTION] Requesting data via HTTPS GET from https://meta.fabricmc.net/v1/versions/loader/' + version + '\n')
 
@@ -56,12 +68,14 @@ async function run() {
       branch = '1.16';
     }
 
-    let latestVersion = result.metadata.versioning[0].release;
+    let latestVersion = result.metadata.versioning[0].latest;
 
-    result.metadata.versioning[0].versions.forEach((version) => {
-      if(String(version).endsWith(branch))
-        latestVersion = String(version);
-    })
+    if(version !== 'latest') {
+      result.metadata.versioning[0].versions.forEach((version) => {
+        if(String(version).endsWith(branch))
+          latestVersion = String(version);
+      })
+    }
 
     fabricVersion = latestVersion;
 
