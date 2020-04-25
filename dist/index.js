@@ -153,15 +153,15 @@ const fs = __webpack_require__(747);
 const readline = __webpack_require__(58);
 const { spawn } = __webpack_require__(129);
 
-const version = core.getInput('minecraftVersion');
+let version = core.getInput('minecraftVersion');
 
-let loaderVersion = '0.8.2+build.194';
-let yarnVersion = '1.15.2+build.15';
-let minecraftVersion = '1.15.2';
-let fabricVersion = '0.7.1+build.301-1.15';
+let loaderVersion = '';
+let yarnVersion = '';
+let minecraftVersion = '';
+let fabricVersion = '';
 
 async function run() {
-  const loaderResp = await fetch('https://meta.fabricmc.net/v1/versions/loader/' + version,{
+  const loaderResp = await fetch('https://meta.fabricmc.net/v1/versions/loader/' + version, {
     method: 'get',
     credentials: 'include',
     mode: 'no-cors',
@@ -171,6 +171,9 @@ async function run() {
   });
 
   const json = await loaderResp.json();
+
+  if(version === "latest")
+    version = "";
 
   console.log('[ACTION] Requesting data via HTTPS GET from https://meta.fabricmc.net/v1/versions/loader/' + version + '\n')
 
@@ -192,7 +195,7 @@ async function run() {
 
   console.log('[ACTION] Requesting data via HTTPS GET from https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml')
 
-  parseStringPromise(text).then((result) => {
+  await parseStringPromise(text).then((result) => {
     let branch = '1.15';
 
     if(minecraftVersion === '1.14.4'){
@@ -269,7 +272,7 @@ async function run() {
                 return core.setFailed(err.message);
 
               console.log('[ACTION] Successfully accepted EULA! Running server test now.')
-              runServer(() => {});
+              runServer(() => console.log('[ACTION] All tests have passed!'));
             })
           })
         });
@@ -281,6 +284,8 @@ async function run() {
 }
 
 async function runBuild(callback) {
+  if(!core.getInput('runBuildTest')) return;
+
   const build = await spawn('./gradlew', ['build', '--refresh-dependencies'])
 
   build.stdout.on('data', (data) => console.log(`${data}`));
@@ -293,6 +298,8 @@ async function runBuild(callback) {
 }
 
 async function runServer(callback) {
+  if(!core.getInput('runServerTest')) return;
+
   const server = await spawn('./gradlew', ['runServer', '--args=“nogui”'])
 
   server.stdout.on('data', (data) => {
