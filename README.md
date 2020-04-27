@@ -33,7 +33,7 @@ jobs:
         lfs: true
 
     - name: "Run Fabric Tests"
-      uses: Geometrically/fabric-test-runner@v1.1
+      uses: Geometrically/fabric-test-runner@v1
       with:
         minecraftVersion: 20w17a
     
@@ -69,7 +69,7 @@ jobs:
         - uses: actions/checkout@v2
           with:
             lfs: true
-        - uses: Geometrically/fabric-test-runner@v1.1
+        - uses: Geometrically/fabric-test-runner@v1
           id: testRunner
           with:
             minecraftVersion: ${{ matrix.minecraftVersion }}

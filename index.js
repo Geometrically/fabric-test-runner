@@ -2,8 +2,8 @@ const fetch = require('node-fetch');
 const parseStringPromise = require('xml2js').parseStringPromise;
 const core = require('@actions/core');
 const fs = require('fs');
-const readline = require('readline');
 const { spawn } = require('child_process');
+const process = require('process');
 
 let version = core.getInput('minecraftVersion');
 
@@ -11,6 +11,8 @@ let loaderVersion = '';
 let yarnVersion = '';
 let minecraftVersion = '';
 let fabricVersion = '';
+
+let properties = [];
 
 async function run() {
   if(version === "latest") {
@@ -25,6 +27,7 @@ async function run() {
 
     const yarnJson = await yarnResp.json();
 
+    // eslint-disable-next-line require-atomic-updates
     version = yarnJson.game[0].version;
   }
 
@@ -68,117 +71,102 @@ async function run() {
       branch = '1.16';
     }
 
-    let latestVersion = result.metadata.versioning[0].latest;
+    const versions = result.metadata.versioning[0];
 
-    if(version !== 'latest') {
-      result.metadata.versioning[0].versions.forEach((version) => {
-        if(String(version).endsWith(branch))
-          latestVersion = String(version);
-      })
+    if(version === 'latest')
+      fabricVersion = versions.latest;
+    else {
+      let latestVersion = versions.release;
+
+      for(const version of versions.versions[0].version) {
+        if(version.endsWith(branch))
+          latestVersion = version;
+      }
+
+      fabricVersion = latestVersion;
     }
-
-    fabricVersion = latestVersion;
 
     console.log('[ACTION] Fabric API version retrieved! Version ' + fabricVersion);
   }).catch((err) => {
     core.setFailed(err.message);
   })
 
-  let stream = fs.createReadStream('./gradle.properties')
+  const mod = fs.readFileSync('./src/main/resources/fabric.mod.json')
+  let modJson = JSON.parse(mod);
+  let writeJson = Object.assign({}, modJson);
 
-  const props = readline.createInterface({
-    input: stream
-  });
+  writeJson.depends.fabricloader = "*";
+  writeJson.depends.minecraft = "*";
 
-  let writeLines = '';
+  fs.writeFileSync('./src/main/resources/fabric.mod.json', JSON.stringify(writeJson));
 
-  props.on('line', (line) => {
-    let writeLine = line;
+  properties.push("-Pminecraft_version=" + minecraftVersion);
+  properties.push("-Pyarn_mappings=" + yarnVersion);
+  properties.push("-Ploader_version=" + loaderVersion);
+  properties.push("-Pfabric_version=" + fabricVersion);
 
-    if(line.includes('minecraft_version'))
-      writeLine = '\tminecraft_version=' + minecraftVersion
-    else if (line.includes('yarn_mappings'))
-      writeLine = '\tyarn_mappings=' + yarnVersion
-    else if (line.includes('loader_version'))
-      writeLine = '\tloader_version=' + loaderVersion
-    else if (line.includes('fabric_version'))
-      writeLine = '\tfabric_version=' + fabricVersion
+  console.log('[ACTION] Running gradle build test.');
 
-    writeLines += writeLine + '\n';
-  });
+  await runBuild(() => {
+    console.log('[ACTION] Running server test!');
 
-  stream.on('end', () => {
-    try {
-      fs.writeFileSync('./gradle.properties', writeLines);
+    let dir = './run/'
 
-      console.log('[ACTION] Successfully wrote to gradle.properties! Running gradle build test.');
-      runBuild(() => {
-        console.log('[ACTION] Running server test pre-EULA agreement via gradle!');
-        runServer(() => {
-          let eulaStream = fs.createReadStream('./run/eula.txt');
+    if (!fs.existsSync(dir))
+      fs.mkdirSync(dir);
 
-          const eula = readline.createInterface({
-            input: eulaStream
-          });
+    fs.writeFile( './run/eula.txt', 'eula=true', { flag: 'wx' }, err => {
+      if(err)
+        core.setFailed(err.message);
 
-          writeLines = '';
-
-          eula.on('line', (line) => {
-            let writeLine = String(line);
-
-            if (line.includes('eula=false'))
-              writeLine = 'eula=true'
-
-            writeLines = writeLines + writeLine + '\n';
-          });
-
-          eulaStream.on('end', () => {
-            fs.writeFile('./run/eula.txt', writeLines, (err) => {
-              if (err)
-                return core.setFailed(err.message);
-
-              console.log('[ACTION] Successfully accepted EULA! Running server test now.')
-              runServer(() => console.log('[ACTION] All tests have passed!'));
-            })
-          })
-        });
-      })
-    } catch (err) {
-      core.setFailed(err);
-    }
-  });
+      runServer(() => console.log('[ACTION] All tests have passed!'));
+    });
+  })
 }
-
 async function runBuild(callback) {
   if(!core.getInput('runBuildTest')) return;
 
-  const build = await spawn('./gradlew', ['build', '--refresh-dependencies'])
+  let build;
 
-  build.stdout.on('data', (data) => console.log(`${data}`));
 
-  build.stderr.on('data', (data) => console.error(`${data}`));
+  if(process.platform === 'win32')
+    build = await spawn('cmd', ['/c', 'gradlew', 'build', '--refresh-dependencies'].concat(properties))
+  else
+    build = await spawn('./gradlew', ['build', '--refresh-dependencies'].concat(properties))
 
-  build.on('error', (err) => console.error(err))
 
+  build.stdout.on('data', (data) => process.stdout.write(`${data}`));
+
+  build.stderr.on('data', (data) => process.stderr.write(`${data}`));
+
+  build.on('error', (err) => process.stderr.write(err))
+
+  // eslint-disable-next-line no-unused-vars
   build.on('close', (code) => callback())
 }
 
 async function runServer(callback) {
   if(!core.getInput('runServerTest')) return;
 
-  const server = await spawn('./gradlew', ['runServer', '--args=“nogui”'])
+  let server;
+
+  if(process.platform === 'win32')
+    server = await spawn('cmd', ['/c', 'gradlew', 'runServer', '--args=“nogui”'].concat(properties));
+  else
+    server = await spawn('./gradlew', ['runServer', '--args=“nogui”'].concat(properties));
 
   server.stdout.on('data', (data) => {
     if(data.includes('Preparing spawn area'))
       server.kill();
 
-    console.log(`${data}`)
+    process.stdout.write(`${data}`)
   });
 
-  server.stderr.on('data', (data) => console.error(`${data}`));
+  server.stderr.on('data', (data) => process.stderr.write(`${data}`));
 
-  server.on('error', (err) => console.error(err))
+  server.on('error', (err) => process.stderr.write(err))
 
+  // eslint-disable-next-line no-unused-vars
   server.on('close', (code) => callback())
 }
 

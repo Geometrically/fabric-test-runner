@@ -27,6 +27,7 @@
     "@actions/core": "^1.2.3",
     "install": "^0.13.0",
     "node-fetch": "^2.6.0",
+    "process": "^0.11.10",
     "xml2js": "^0.4.23"
   },
   "devDependencies": {
