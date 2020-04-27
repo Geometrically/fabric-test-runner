@@ -156,7 +156,7 @@ async function runServer(callback) {
     server = await spawn('./gradlew', ['runServer', '--args=“nogui”'].concat(properties));
 
   server.stdout.on('data', (data) => {
-    if(data.includes('Preparing spawn area'))
+    if(data.includes('For help, type'))
       server.kill();
 
     process.stdout.write(`${data}`)
