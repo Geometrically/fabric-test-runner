@@ -292,13 +292,19 @@ async function runServer(callback) {
   let server;
 
   if(process.platform === 'win32')
-    server = await spawn('cmd', ['/c', 'gradlew', 'runServer', '--args=“nogui”'].concat(properties));
+    server = await spawn('gradlew', ['runServer', '--args=“nogui”'].concat(properties), { shell: true});
   else
     server = await spawn('./gradlew', ['runServer', '--args=“nogui”'].concat(properties));
 
   server.stdout.on('data', (data) => {
-    if(data.includes('For help, type'))
-      server.kill();
+    if (data.includes('For help, type')) {
+      console.log('[ACTION] Server test complete! Exiting process.')
+
+      if(process.platform === 'win32')
+        spawn("taskkill", ["/pid", server.pid, '/f', '/t']);
+      else
+        server.kill();
+    }
 
     process.stdout.write(`${data}`)
   });
