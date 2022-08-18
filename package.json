@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/Geometrically/minecraft-actions#readme",
   "dependencies": {
-    "@actions/core": "^1.2.6",
+    "@actions/core": "^1.9.1",
     "install": "^0.13.0",
     "node-fetch": "^2.6.0",
     "process": "^0.11.10",
